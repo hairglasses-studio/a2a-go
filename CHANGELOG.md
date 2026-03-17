@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.10](https://github.com/a2aproject/a2a-go/compare/v0.3.9...v0.3.10) (2026-03-17)
+
+### Bug Fixes
+
+* fix wrong allocation target size
+* terminate subscription after terminal event has been received
+* fix missing break after error
+* fix subscribing to a different taskID in case of work queue override
+* fix response not sent for methods not returning values
+* fix panic write attempt to unbuffered channel
+
 ## [0.3.9](https://github.com/a2aproject/a2a-go/compare/v0.3.8...v0.3.9) (2026-03-10)
 
 ### Features
