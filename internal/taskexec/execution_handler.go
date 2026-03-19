@@ -41,18 +41,18 @@ func (h *executionHandler) processEvents(ctx context.Context) (a2a.SendMessageRe
 	for {
 		event, err := h.agentEvents.Read(ctx)
 		if err != nil && ctx.Err() != nil {
-			log.Info(ctx, "execution context canceled", "cause", context.Cause(ctx))
+			log.Warn(ctx, "execution context canceled", "cause", context.Cause(ctx))
 			return h.handleErrorFn(ctx, context.Cause(ctx))
 		}
 
 		if err != nil {
-			log.Info(ctx, "error reading from queue", "error", err)
+			log.Warn(ctx, "error reading from event pipe", "error", err)
 			return h.handleErrorFn(ctx, err)
 		}
 
 		processResult, err := h.handleEventFn(ctx, event)
 		if err != nil {
-			log.Info(ctx, "processor error", "error", err)
+			log.Error(ctx, "event processing failed", err)
 			return nil, err
 		}
 
@@ -63,7 +63,7 @@ func (h *executionHandler) processEvents(ctx context.Context) (a2a.SendMessageRe
 			}
 			msg := &eventqueue.Message{Event: toEmit, TaskVersion: processResult.TaskVersion}
 			if err := h.handledEventQueue.Write(ctx, msg); err != nil {
-				log.Info(ctx, "execution context canceled during subscriber notification attempt", "cause", context.Cause(ctx))
+				log.Warn(ctx, "subscriber notification failed due to context cancelation", "cause", context.Cause(ctx))
 				return h.handleErrorFn(ctx, context.Cause(ctx))
 			}
 		}

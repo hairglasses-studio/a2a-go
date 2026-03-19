@@ -48,6 +48,11 @@ func Log(ctx context.Context, level slog.Level, msg string, keyValArgs ...any) {
 	doLog(ctx, level, msg, keyValArgs...)
 }
 
+// Debug invokes DebugContext on the [slog.Logger] associated with the provided Context or slog.Default() if no context-scoped logger is available.
+func Debug(ctx context.Context, msg string, keyValArgs ...any) {
+	doLog(ctx, slog.LevelDebug, msg, keyValArgs...)
+}
+
 // Info invokes InfoContext on the [slog.Logger] associated with the provided Context or slog.Default() if no context-scoped logger is available.
 func Info(ctx context.Context, msg string, keyValArgs ...any) {
 	doLog(ctx, slog.LevelInfo, msg, keyValArgs...)

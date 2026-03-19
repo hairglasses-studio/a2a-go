@@ -161,7 +161,9 @@ func (m *localManager) Execute(ctx context.Context, req *a2a.SendMessageRequest)
 		return nil, fmt.Errorf("failed to create a default subscription event queue: %w", err)
 	}
 
-	detachedCtx := context.WithoutCancel(ctx)
+	// Detach from the request context so execution outlives the HTTP request,
+	// but carry the logger so that execution logs retain the request attributes.
+	detachedCtx := log.AttachLogger(context.WithoutCancel(ctx), log.LoggerFrom(ctx))
 
 	go m.handleExecution(detachedCtx, execution, eventBroadcastQueue)
 
@@ -210,7 +212,7 @@ func (m *localManager) Cancel(ctx context.Context, req *a2a.CancelTaskRequest) (
 	m.mu.Unlock()
 
 	if !cancelInProgress {
-		detachedCtx := context.WithoutCancel(ctx)
+		detachedCtx := log.AttachLogger(context.WithoutCancel(ctx), log.LoggerFrom(ctx))
 		if execution != nil {
 			go m.handleCancelWithConcurrentRun(detachedCtx, cancel, execution)
 		} else {
@@ -240,9 +242,13 @@ func (m *localManager) cleanupExecution(ctx context.Context, execution *localExe
 func (m *localManager) handleExecution(ctx context.Context, execution *localExecution, eventBroadcast eventqueue.Writer) {
 	defer m.cleanupExecution(ctx, execution)
 
+	log.Info(ctx, "execution started", "task_id", string(execution.tid))
+
 	executor, processor, err := m.factory.CreateExecutor(ctx, execution.tid, execution.req)
 	if err != nil {
-		execution.result.setError(fmt.Errorf("setup failed: %w", err))
+		err = fmt.Errorf("setup failed: %w", err)
+		log.Error(ctx, "execution setup failed", err, "task_id", string(execution.tid))
+		execution.result.setError(err)
 		m.destroyQueue(ctx, execution.tid)
 		return
 	}
@@ -262,9 +268,11 @@ func (m *localManager) handleExecution(ctx context.Context, execution *localExec
 	)
 
 	if err != nil {
+		log.Error(ctx, "execution failed", err, "task_id", string(execution.tid))
 		execution.result.setError(err)
 		return
 	}
+	log.Info(ctx, "execution completed", "task_id", string(execution.tid))
 	execution.result.setValue(result)
 }
 
@@ -280,9 +288,13 @@ func (m *localManager) handleCancel(ctx context.Context, cancel *cancelation) {
 		m.mu.Unlock()
 	}()
 
+	log.Info(ctx, "cancelation started", "task_id", string(cancel.req.ID))
+
 	canceler, processor, err := m.factory.CreateCanceler(ctx, cancel.req)
 	if err != nil {
-		cancel.result.setError(fmt.Errorf("setup failed: %w", err))
+		err = fmt.Errorf("setup failed: %w", err)
+		log.Error(ctx, "cancelation setup failed", err, "task_id", string(cancel.req.ID))
+		cancel.result.setError(err)
 		return
 	}
 
@@ -298,9 +310,11 @@ func (m *localManager) handleCancel(ctx context.Context, cancel *cancelation) {
 		m.panicHandler,
 	)
 	if err != nil {
+		log.Error(ctx, "cancelation failed", err, "task_id", string(cancel.req.ID))
 		cancel.result.setError(err)
 		return
 	}
+	log.Info(ctx, "cancelation completed", "task_id", string(cancel.req.ID))
 	cancel.result.setValue(result)
 }
 
@@ -309,7 +323,9 @@ func (m *localManager) handleCancel(ctx context.Context, cancel *cancelation) {
 func (m *localManager) handleCancelWithConcurrentRun(ctx context.Context, cancel *cancelation, run *localExecution) {
 	defer func() {
 		if r := recover(); r != nil {
-			cancel.result.setError(fmt.Errorf("task cancelation panic: %v", r))
+			err := fmt.Errorf("task cancelation panic: %v", r)
+			log.Error(ctx, "cancelation panicked", err, "task_id", string(cancel.req.ID))
+			cancel.result.setError(err)
 		}
 	}()
 
@@ -320,9 +336,13 @@ func (m *localManager) handleCancelWithConcurrentRun(ctx context.Context, cancel
 		m.mu.Unlock()
 	}()
 
+	log.Info(ctx, "cancelation started (concurrent execution)", "task_id", string(cancel.req.ID))
+
 	canceler, _, err := m.factory.CreateCanceler(ctx, cancel.req)
 	if err != nil {
-		cancel.result.setError(fmt.Errorf("setup failed: %w", err))
+		err = fmt.Errorf("setup failed: %w", err)
+		log.Error(ctx, "cancelation setup failed", err, "task_id", string(cancel.req.ID))
+		cancel.result.setError(err)
 		return
 	}
 
@@ -333,16 +353,19 @@ func (m *localManager) handleCancelWithConcurrentRun(ctx context.Context, cancel
 	// In this case our cancel will resolve to ErrTaskNotCancelable. It would probably be more
 	// correct to restart the cancelation as if there was no concurrent execution at the moment of Cancel call.
 	if err := canceler.Cancel(ctx, run.pipe.Writer); err != nil {
+		log.Error(ctx, "cancelation signal failed", err, "task_id", string(cancel.req.ID))
 		cancel.result.setError(err)
 		return
 	}
 
 	result, err := run.result.wait(ctx)
 	if err != nil {
+		log.Error(ctx, "cancelation failed waiting for execution", err, "task_id", string(cancel.req.ID))
 		cancel.result.setError(err)
 		return
 	}
 
+	log.Info(ctx, "cancelation completed", "task_id", string(cancel.req.ID))
 	cancel.result.setValue(result)
 }
 

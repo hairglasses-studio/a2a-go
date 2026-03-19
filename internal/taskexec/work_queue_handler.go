@@ -50,6 +50,8 @@ func (b *workQueueHandler) handle(ctx context.Context, payload *workqueue.Payloa
 	pipe := eventpipe.NewLocal()
 	defer pipe.Close()
 
+	log.Info(ctx, "work queue item received", "task_id", string(payload.TaskID), "type", string(payload.Type))
+
 	var eventProducer eventProducerFn
 	var eventProcessor Processor
 
@@ -104,5 +106,11 @@ func (b *workQueueHandler) handle(ctx context.Context, payload *workqueue.Payloa
 		heartbeater = hb
 	}
 
-	return runProducerConsumer(ctx, eventProducer, handler.processEvents, heartbeater, b.panicHandler)
+	result, err := runProducerConsumer(ctx, eventProducer, handler.processEvents, heartbeater, b.panicHandler)
+	if err != nil {
+		log.Error(ctx, "work queue execution failed", err, "task_id", string(payload.TaskID), "type", string(payload.Type))
+		return nil, err
+	}
+	log.Info(ctx, "work queue execution completed", "task_id", string(payload.TaskID), "type", string(payload.Type))
+	return result, nil
 }
