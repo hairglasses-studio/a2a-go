@@ -256,6 +256,7 @@ func (m *localManager) handleExecution(ctx context.Context, execution *localExec
 	cleaner.Cleanup(ctx, result, err)
 
 	if err != nil {
+		log.Info(ctx, "execution failed with an error", "cause", err)
 		execution.result.setError(err)
 		return
 	}
@@ -283,7 +284,11 @@ func (m *localManager) handleCancel(ctx context.Context, cancel *cancelation) {
 	pipe := eventpipe.NewLocal()
 	defer pipe.Close()
 
-	handler := &executionHandler{agentEvents: pipe.Reader, handleEventFn: processor.Process}
+	handler := &executionHandler{
+		agentEvents:   pipe.Reader,
+		handleEventFn: processor.Process,
+		handleErrorFn: func(ctx context.Context, err error) (a2a.SendMessageResult, error) { return nil, err },
+	}
 	result, err := runProducerConsumer(
 		ctx,
 		func(ctx context.Context) error { return canceler.Cancel(ctx, pipe.Writer) },
@@ -295,6 +300,7 @@ func (m *localManager) handleCancel(ctx context.Context, cancel *cancelation) {
 	cleaner.Cleanup(ctx, result, err)
 
 	if err != nil {
+		log.Info(ctx, "cancelation failed with an error", "cause", err)
 		cancel.result.setError(err)
 		return
 	}
@@ -337,6 +343,7 @@ func (m *localManager) handleCancelWithConcurrentRun(ctx context.Context, cancel
 
 	result, err := run.result.wait(ctx)
 	if err != nil {
+		log.Info(ctx, "concurrent cancelation failed with an error", "cause", err)
 		cancel.result.setError(err)
 		return
 	}

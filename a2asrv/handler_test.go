@@ -806,6 +806,7 @@ func TestRequestHandler_OnSendMessage_TaskVersion(t *testing.T) {
 		{a2a.TaskStateSubmitted, a2a.TaskStateInputRequired}, // first run
 		{a2a.TaskStateWorking, a2a.TaskStateCompleted},       //second run
 	}
+	cleanupCalled := make(chan struct{}, 1)
 	executor := &mockAgentExecutor{
 		ExecuteFunc: func(ctx context.Context, reqCtx *RequestContext, queue eventqueue.Queue) error {
 			events := statusUpdates[0]
@@ -818,6 +819,9 @@ func TestRequestHandler_OnSendMessage_TaskVersion(t *testing.T) {
 			}
 			statusUpdates = statusUpdates[1:]
 			return nil
+		},
+		CleanupFunc: func(ctx context.Context, reqCtx *RequestContext, result a2a.SendMessageResult, cause error) {
+			cleanupCalled <- struct{}{}
 		},
 	}
 	handler := NewHandler(executor, WithTaskStore(store))
@@ -849,8 +853,8 @@ func TestRequestHandler_OnSendMessage_TaskVersion(t *testing.T) {
 			t.Fatalf("Save() was called with %v, want %v", gotPrevVersions, wantPrev)
 		}
 		gotPrevVersions = make([]a2a.TaskVersion, 0)
+		<-cleanupCalled
 	}
-
 }
 
 func TestRequestHandler_OnSendMessage_AgentExecutorPanicFailsTask(t *testing.T) {
@@ -1791,6 +1795,7 @@ type mockAgentExecutor struct {
 
 	ExecuteFunc func(ctx context.Context, reqCtx *RequestContext, queue eventqueue.Queue) error
 	CancelFunc  func(ctx context.Context, reqCtx *RequestContext, queue eventqueue.Queue) error
+	CleanupFunc func(ctx context.Context, reqCtx *RequestContext, result a2a.SendMessageResult, cause error)
 }
 
 var _ AgentExecutor = (*mockAgentExecutor)(nil)
@@ -1810,6 +1815,12 @@ func (m *mockAgentExecutor) Cancel(ctx context.Context, reqCtx *RequestContext, 
 		return m.CancelFunc(ctx, reqCtx, queue)
 	}
 	return errors.New("Cancel() not implemented")
+}
+
+func (m *mockAgentExecutor) Cleanup(ctx context.Context, reqCtx *RequestContext, result a2a.SendMessageResult, cause error) {
+	if m.CleanupFunc != nil {
+		m.CleanupFunc(ctx, reqCtx, result, cause)
+	}
 }
 
 func newEventReplayAgent(toSend []a2a.Event, err error) *mockAgentExecutor {

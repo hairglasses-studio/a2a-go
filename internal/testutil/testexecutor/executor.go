@@ -16,6 +16,7 @@ package testexecutor
 
 import (
 	"context"
+	"sync"
 
 	"github.com/a2aproject/a2a-go/a2a"
 	"github.com/a2aproject/a2a-go/a2asrv"
@@ -23,13 +24,27 @@ import (
 )
 
 type TestAgentExecutor struct {
-	Emitted   []a2a.Event
+	mu      sync.Mutex
+	emitted []a2a.Event
+
 	ExecuteFn func(context.Context, *a2asrv.RequestContext, eventqueue.Queue) error
 	CleanupFn func(context.Context, *a2asrv.RequestContext, a2a.SendMessageResult, error)
 	CancelFn  func(context.Context, *a2asrv.RequestContext, eventqueue.Queue) error
 }
 
 var _ a2asrv.AgentExecutor = (*TestAgentExecutor)(nil)
+
+func (e *TestAgentExecutor) Emitted() []a2a.Event {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.emitted
+}
+
+func (e *TestAgentExecutor) record(event a2a.Event) {
+	e.mu.Lock()
+	e.emitted = append(e.emitted, event)
+	e.mu.Unlock()
+}
 
 func (e *TestAgentExecutor) Execute(ctx context.Context, reqCtx *a2asrv.RequestContext, q eventqueue.Queue) error {
 	if e.ExecuteFn != nil {
@@ -58,13 +73,13 @@ func FromFunction(fn func(context.Context, *a2asrv.RequestContext, eventqueue.Qu
 func FromEventGenerator(generator func(reqCtx *a2asrv.RequestContext) []a2a.Event) *TestAgentExecutor {
 	var exec *TestAgentExecutor
 	exec = &TestAgentExecutor{
-		Emitted: []a2a.Event{},
+		emitted: []a2a.Event{},
 		ExecuteFn: func(ctx context.Context, reqCtx *a2asrv.RequestContext, q eventqueue.Queue) error {
 			for _, ev := range generator(reqCtx) {
 				if err := q.Write(ctx, ev); err != nil {
 					return err
 				}
-				exec.Emitted = append(exec.Emitted, ev)
+				exec.record(ev)
 			}
 			return nil
 		},
@@ -84,14 +99,14 @@ func NewWithControlChannels() (*TestAgentExecutor, *ControlChannels) {
 	cancelCalledChan, continueCancelChan := make(chan struct{}, 1), make(chan struct{}, 1)
 	var executor *TestAgentExecutor
 	executor = &TestAgentExecutor{
-		Emitted: []a2a.Event{},
+		emitted: []a2a.Event{},
 		ExecuteFn: func(ctx context.Context, reqCtx *a2asrv.RequestContext, q eventqueue.Queue) error {
 			reqCtxChan <- reqCtx
 			for ev := range eventsChan {
 				if err := q.Write(ctx, ev); err != nil {
 					return err
 				}
-				executor.Emitted = append(executor.Emitted, ev)
+				executor.record(ev)
 			}
 			return nil
 		},

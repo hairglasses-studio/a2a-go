@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.12](https://github.com/a2aproject/a2a-go/compare/v0.3.11...v0.3.12) (2026-03-20)
+
+### Bug Fixes
+
+* add logging for failed execution and cancelation, fix nil-pointer on cancelation error ([commit](https://github.com/a2aproject/a2a-go/commit/ef039dd963464553f2a6193ee985f6edc92c23ae)])
+
 ## [0.3.11](https://github.com/a2aproject/a2a-go/compare/v0.3.10...v0.3.11) (2026-03-19)
 
 ### Bug Fixes
