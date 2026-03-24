@@ -1,0 +1,42 @@
+name: ITK
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.github/CODEOWNERS'
+
+permissions:
+  contents: read
+
+jobs:
+  itk:
+    name: ITK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.13'
+
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run ITK Tests
+        run: bash run_itk.sh
+        working-directory: itk
+        env:
+          A2A_SAMPLES_REVISION: itk-v0.1-alpha
+
