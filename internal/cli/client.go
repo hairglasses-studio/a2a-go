@@ -1,3 +1,17 @@
+// Copyright 2026 The A2A Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package cli
 
 import (
@@ -8,6 +22,8 @@ import (
 	"github.com/a2aproject/a2a-go/v2/a2a"
 	"github.com/a2aproject/a2a-go/v2/a2aclient"
 	"github.com/a2aproject/a2a-go/v2/a2aclient/agentcard"
+	"github.com/a2aproject/a2a-go/v2/a2acompat/a2av0"
+	a2agrpcv0 "github.com/a2aproject/a2a-go/v2/a2agrpc/v0"
 )
 
 func newClient(ctx context.Context, cfg *globalConfig, agentURL string) (*a2aclient.Client, error) {
@@ -22,7 +38,11 @@ func newClient(ctx context.Context, cfg *globalConfig, agentURL string) (*a2acli
 		return nil, fmt.Errorf("resolving agent card: %w", err)
 	}
 
-	var factoryOpts []a2aclient.FactoryOption
+	factoryOpts := []a2aclient.FactoryOption{
+		a2agrpcv0.WithGRPCTransport(),
+		a2av0.WithRESTTransport(a2av0.RESTTransportConfig{}),
+		a2av0.WithJSONRPCTransport(a2av0.JSONRPCTransportConfig{}),
+	}
 	if cfg.transport != "" {
 		proto, err := parseTransport(cfg.transport)
 		if err != nil {
@@ -34,14 +54,16 @@ func newClient(ctx context.Context, cfg *globalConfig, agentURL string) (*a2acli
 	}
 
 	cfg.logf("creating client for %s", card.Name)
+
 	return a2aclient.NewFromCard(ctx, card, factoryOpts...)
 }
 
 func withServiceParams(ctx context.Context, cfg *globalConfig) context.Context {
 	params := a2aclient.ServiceParams{}
 	for _, kv := range cfg.svcParams {
-		k, v, _ := strings.Cut(kv, "=")
-		params.Append(k, v)
+		if k, v, ok := strings.Cut(kv, "="); ok {
+			params.Append(k, v)
+		}
 	}
 	if cfg.auth != "" {
 		params.Append("Authorization", cfg.auth)

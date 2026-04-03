@@ -1,3 +1,17 @@
+// Copyright 2026 The A2A Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package cli
 
 import (
@@ -48,20 +62,17 @@ func serveProxy(ctx context.Context, cfg *globalConfig, listener net.Listener, a
 	if transport == "" {
 		transport = "rest"
 	}
-	mux := buildMux(handler, card, transport)
 
 	if !quiet {
 		fmt.Fprintf(os.Stderr, "Proxying to %s\n", upstreamURL)
 	}
 	cfg.logf("proxy mode, transport=%s", transport)
-	return startServer(ctx, listener, mux, quiet)
+	return startTransportServer(ctx, listener, handler, card, transport, quiet)
 }
 
 func deriveProxyCard(upstream *a2a.AgentCard, addr string, proto a2a.TransportProtocol) *a2a.AgentCard {
 	card := *upstream
-	card.SupportedInterfaces = []*a2a.AgentInterface{
-		a2a.NewAgentInterface("http://"+addr, proto),
-	}
+	card.SupportedInterfaces = []*a2a.AgentInterface{a2a.NewAgentInterface("http://"+addr, proto)}
 	return &card
 }
 

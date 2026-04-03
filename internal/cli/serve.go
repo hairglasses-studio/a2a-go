@@ -1,3 +1,17 @@
+// Copyright 2026 The A2A Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package cli
 
 import (
@@ -11,8 +25,10 @@ import (
 	"os/signal"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
 
 	"github.com/a2aproject/a2a-go/v2/a2a"
+	a2agrpc "github.com/a2aproject/a2a-go/v2/a2agrpc/v1"
 	"github.com/a2aproject/a2a-go/v2/a2asrv"
 )
 
@@ -66,8 +82,11 @@ func newServeCmd(cfg *globalConfig) *cobra.Command {
 			}
 
 			proto := a2a.TransportProtocolHTTPJSON
-			if serveTransport == "jsonrpc" {
+			switch serveTransport {
+			case "jsonrpc":
 				proto = a2a.TransportProtocolJSONRPC
+			case "grpc":
+				proto = a2a.TransportProtocolGRPC
 			}
 
 			switch {
@@ -113,19 +132,27 @@ func loadOrBuildCard(cardFile, name, desc, addr string, proto a2a.TransportProto
 		name = "a2a-cli"
 	}
 	url := "http://" + addr
+	if proto == a2a.TransportProtocolGRPC {
+		url = addr
+	}
 	return &a2a.AgentCard{
-		Name:        name,
-		Description: desc,
-		Version:     "1.0.0",
-		SupportedInterfaces: []*a2a.AgentInterface{
-			a2a.NewAgentInterface(url, proto),
-		},
-		DefaultInputModes:  []string{"text/plain"},
-		DefaultOutputModes: []string{"text/plain"},
+		Name:                name,
+		Description:         desc,
+		Version:             "1.0.0",
+		SupportedInterfaces: []*a2a.AgentInterface{a2a.NewAgentInterface(url, proto)},
 	}, nil
 }
 
-func startServer(ctx context.Context, listener net.Listener, handler http.Handler, quiet bool) error {
+// startTransportServer starts the appropriate server (HTTP or gRPC) based on transport.
+func startTransportServer(ctx context.Context, listener net.Listener, handler a2asrv.RequestHandler, card *a2a.AgentCard, transport string, quiet bool) error {
+	if transport == "grpc" {
+		return startGRPCServer(ctx, listener, handler, card, quiet)
+	}
+	mux := buildMux(handler, card, transport)
+	return startHTTPServer(ctx, listener, mux, quiet)
+}
+
+func startHTTPServer(ctx context.Context, listener net.Listener, handler http.Handler, quiet bool) error {
 	addr := listener.Addr().String()
 	srv := &http.Server{Handler: handler}
 
@@ -140,6 +167,39 @@ func startServer(ctx context.Context, listener net.Listener, handler http.Handle
 
 	if err := srv.Serve(listener); err != nil && err != http.ErrServerClosed {
 		return err
+	}
+	return nil
+}
+
+func startGRPCServer(ctx context.Context, listener net.Listener, handler a2asrv.RequestHandler, card *a2a.AgentCard, quiet bool) error {
+	grpcHandler := a2agrpc.NewHandler(handler)
+	s := grpc.NewServer()
+	grpcHandler.RegisterWith(s)
+
+	cardMux := http.NewServeMux()
+	cardMux.Handle(a2asrv.WellKnownAgentCardPath, a2asrv.NewStaticAgentCardHandler(card))
+	cardListener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return fmt.Errorf("creating agent card listener: %w", err)
+	}
+
+	if !quiet {
+		fmt.Fprintf(os.Stderr, "gRPC listening on %s\n", listener.Addr())
+		fmt.Fprintf(os.Stderr, "Agent card at http://%s%s\n", cardListener.Addr(), a2asrv.WellKnownAgentCardPath)
+	}
+
+	go func() {
+		<-ctx.Done()
+		s.GracefulStop()
+		_ = cardListener.Close()
+	}()
+
+	go func() {
+		_ = http.Serve(cardListener, cardMux)
+	}()
+
+	if err := s.Serve(listener); err != nil {
+		return fmt.Errorf("gRPC server: %w", err)
 	}
 	return nil
 }
@@ -170,17 +230,14 @@ func serveEcho(ctx context.Context, cfg *globalConfig, listener net.Listener, ad
 		return err
 	}
 
-	handler := a2asrv.NewHandler(&echoExecutor{},
-		a2asrv.WithCapabilityChecks(&a2a.AgentCapabilities{Streaming: true}),
-	)
+	handler := a2asrv.NewHandler(&echoExecutor{})
 	transport := cfg.transport
 	if transport == "" {
 		transport = "rest"
 	}
-	mux := buildMux(handler, card, transport)
 
 	cfg.logf("echo mode, transport=%s", transport)
-	return startServer(ctx, listener, mux, quiet)
+	return startTransportServer(ctx, listener, handler, card, transport, quiet)
 }
 
 type echoExecutor struct{}

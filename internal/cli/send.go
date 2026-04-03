@@ -1,3 +1,17 @@
+// Copyright 2026 The A2A Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package cli
 
 import (
@@ -46,14 +60,11 @@ func newSendCmd(cfg *globalConfig) *cobra.Command {
 
 			client, err := newClient(ctx, cfg, args[0])
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to create a client: %w", err)
 			}
 			defer func() { _ = client.Destroy() }()
 
-			req := &a2a.SendMessageRequest{
-				Message: msg,
-				Tenant:  cfg.tenant,
-			}
+			req := &a2a.SendMessageRequest{Message: msg, Tenant: cfg.tenant}
 			if immediate || cmd.Flags().Changed("history") {
 				req.Config = &a2a.SendMessageConfig{}
 				if immediate {
@@ -67,14 +78,10 @@ func newSendCmd(cfg *globalConfig) *cobra.Command {
 			if stream {
 				for event, err := range client.SendStreamingMessage(ctx, req) {
 					if err != nil {
-						return err
+						return fmt.Errorf("streaming error: %w", err)
 					}
-					if cfg.output == "json" {
-						if err := printJSON(os.Stdout, event); err != nil {
-							return err
-						}
-					} else {
-						printEvent(os.Stdout, event)
+					if err := cfg.printEvent(event); err != nil {
+						return fmt.Errorf("failed to print event: %w", err)
 					}
 				}
 				return nil
@@ -82,12 +89,11 @@ func newSendCmd(cfg *globalConfig) *cobra.Command {
 
 			result, err := client.SendMessage(ctx, req)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to send message: %w", err)
 			}
-			if cfg.output == "json" {
-				return printJSON(os.Stdout, result)
+			if err := cfg.printSendResult(result); err != nil {
+				return fmt.Errorf("failed to print result: %w", err)
 			}
-			printSendResult(os.Stdout, result)
 			return nil
 		},
 	}

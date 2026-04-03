@@ -1,7 +1,23 @@
+// Copyright 2026 The A2A Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Package cli implements the a2a command-line interface.
 package cli
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -9,6 +25,7 @@ import (
 )
 
 type globalConfig struct {
+	out       io.Writer
 	output    string
 	transport string
 	svcParams []string
@@ -20,14 +37,14 @@ type globalConfig struct {
 
 func (g *globalConfig) logf(format string, args ...any) {
 	if g.verbose {
-		fmt.Fprintf(os.Stderr, "# "+format+"\n", args...)
+		_, _ = fmt.Fprintf(os.Stderr, "# "+format+"\n", args...)
 	}
 }
 
 // Execute runs the CLI and returns the exit code.
 func Execute() int {
 	cfg := &globalConfig{}
-	root := newRootCmd(cfg)
+	root := newRootCmd(cfg, os.Stdout)
 	if err := root.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		return 1
@@ -35,7 +52,9 @@ func Execute() int {
 	return 0
 }
 
-func newRootCmd(cfg *globalConfig) *cobra.Command {
+func newRootCmd(cfg *globalConfig, out io.Writer) *cobra.Command {
+	cfg.out = out
+
 	cmd := &cobra.Command{
 		Use:           "a2a",
 		Short:         "CLI for the Agent-to-Agent protocol",

@@ -1,8 +1,22 @@
+// Copyright 2026 The A2A Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package cli
 
 import (
 	"context"
-	"os"
+	"fmt"
 
 	"github.com/spf13/cobra"
 
@@ -21,7 +35,7 @@ func newCancelCmd(cfg *globalConfig) *cobra.Command {
 
 			client, err := newClient(ctx, cfg, args[0])
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to create a client: %w", err)
 			}
 			defer func() { _ = client.Destroy() }()
 
@@ -30,13 +44,12 @@ func newCancelCmd(cfg *globalConfig) *cobra.Command {
 				Tenant: cfg.tenant,
 			})
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to cancel task %s: %w", args[1], err)
 			}
 
-			if cfg.output == "json" {
-				return printJSON(os.Stdout, task)
+			if err := cfg.printTask(task); err != nil {
+				return fmt.Errorf("failed to print task: %w", err)
 			}
-			printTask(os.Stdout, task)
 			return nil
 		},
 	}
