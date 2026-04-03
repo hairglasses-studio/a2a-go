@@ -28,19 +28,10 @@ import (
 	"github.com/a2aproject/a2a-go/v2/a2asrv"
 )
 
+var _ a2asrv.RequestHandler = (*proxyHandler)(nil)
+
 func serveProxy(ctx context.Context, cfg *globalConfig, listener net.Listener, addr string, proto a2a.TransportProtocol, upstreamURL, cardFile string, quiet bool) error {
-	cfg.logf("resolving upstream card from %s", upstreamURL)
-
-	var resolveOpts []agentcard.ResolveOption
-	if cfg.auth != "" {
-		resolveOpts = append(resolveOpts, agentcard.WithRequestHeader("Authorization", cfg.auth))
-	}
-	upstreamCard, err := agentcard.DefaultResolver.Resolve(ctx, upstreamURL, resolveOpts...)
-	if err != nil {
-		return fmt.Errorf("resolving upstream agent card: %w", err)
-	}
-
-	client, err := a2aclient.NewFromCard(ctx, upstreamCard)
+	client, err := newClient(ctx, cfg, upstreamURL)
 	if err != nil {
 		return fmt.Errorf("creating upstream client: %w", err)
 	}
@@ -54,6 +45,14 @@ func serveProxy(ctx context.Context, cfg *globalConfig, listener net.Listener, a
 			return err
 		}
 	} else {
+		var resolveOpts []agentcard.ResolveOption
+		if cfg.auth != "" {
+			resolveOpts = append(resolveOpts, agentcard.WithRequestHeader("Authorization", cfg.auth))
+		}
+		upstreamCard, err := agentcard.DefaultResolver.Resolve(ctx, upstreamURL, resolveOpts...)
+		if err != nil {
+			return fmt.Errorf("resolving upstream agent card: %w", err)
+		}
 		card = deriveProxyCard(upstreamCard, addr, proto)
 	}
 
@@ -143,5 +142,3 @@ func (p *proxyHandler) DeleteTaskPushConfig(ctx context.Context, req *a2a.Delete
 func (p *proxyHandler) GetExtendedAgentCard(ctx context.Context, req *a2a.GetExtendedAgentCardRequest) (*a2a.AgentCard, error) {
 	return p.client.GetExtendedAgentCard(p.withParams(ctx), req)
 }
-
-var _ a2asrv.RequestHandler = (*proxyHandler)(nil)

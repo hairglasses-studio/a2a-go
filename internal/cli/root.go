@@ -25,14 +25,15 @@ import (
 )
 
 type globalConfig struct {
-	out       io.Writer
-	output    string
-	transport string
-	svcParams []string
-	auth      string
-	tenant    string
-	timeout   time.Duration
-	verbose   bool
+	out          io.Writer
+	output       string
+	transport    string
+	svcParams    []string
+	auth         string
+	tenant       string
+	timeout      time.Duration
+	verbose      bool
+	insecureGRPC bool
 }
 
 func (g *globalConfig) logf(format string, args ...any) {
@@ -70,6 +71,7 @@ func newRootCmd(cfg *globalConfig, out io.Writer) *cobra.Command {
 	pf.StringVar(&cfg.tenant, "tenant", "", "Tenant identifier")
 	pf.DurationVar(&cfg.timeout, "timeout", 30*time.Second, "Request timeout")
 	pf.BoolVarP(&cfg.verbose, "verbose", "v", false, "Verbose output to stderr")
+	pf.BoolVar(&cfg.insecureGRPC, "insecure", false, "Use insecure (plaintext) gRPC transport credentials")
 
 	cmd.AddCommand(
 		newDiscoverCmd(cfg),

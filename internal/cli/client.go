@@ -19,11 +19,15 @@ import (
 	"fmt"
 	"strings"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
 	"github.com/a2aproject/a2a-go/v2/a2a"
 	"github.com/a2aproject/a2a-go/v2/a2aclient"
 	"github.com/a2aproject/a2a-go/v2/a2aclient/agentcard"
 	"github.com/a2aproject/a2a-go/v2/a2acompat/a2av0"
 	a2agrpcv0 "github.com/a2aproject/a2a-go/v2/a2agrpc/v0"
+	a2agrpc "github.com/a2aproject/a2a-go/v2/a2agrpc/v1"
 )
 
 func newClient(ctx context.Context, cfg *globalConfig, agentURL string) (*a2aclient.Client, error) {
@@ -39,10 +43,17 @@ func newClient(ctx context.Context, cfg *globalConfig, agentURL string) (*a2acli
 	}
 
 	factoryOpts := []a2aclient.FactoryOption{
-		a2agrpcv0.WithGRPCTransport(),
 		a2av0.WithRESTTransport(a2av0.RESTTransportConfig{}),
 		a2av0.WithJSONRPCTransport(a2av0.JSONRPCTransportConfig{}),
 	}
+	var grpcOpts []grpc.DialOption
+	if cfg.insecureGRPC {
+		grpcOpts = append(grpcOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	}
+	factoryOpts = append(factoryOpts,
+		a2agrpcv0.WithGRPCTransport(grpcOpts...),
+		a2agrpc.WithGRPCTransport(grpcOpts...),
+	)
 	if cfg.transport != "" {
 		proto, err := parseTransport(cfg.transport)
 		if err != nil {
