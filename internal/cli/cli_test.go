@@ -89,6 +89,26 @@ func TestSend(t *testing.T) {
 		wantErr  bool
 	}{
 		{
+			name:     "text",
+			args:     []string{"send", url, "-o", "json", msgText},
+			wantText: msgText,
+		},
+		{
+			name:     "parts",
+			args:     []string{"send", url, "-o", "json", "--parts", `[{"text":"part one"},{"text":"part two"}]`},
+			wantText: "part one part two",
+		},
+		{
+			name:     "message json",
+			args:     []string{"send", url, "-o", "json", "--json", msgJSON},
+			wantText: msgText,
+		},
+		{
+			name:     "message from file",
+			args:     []string{"send", url, "-o", "json", "-f", path},
+			wantText: msgText,
+		},
+		{
 			name:    "fails when no message",
 			args:    []string{"send", url},
 			wantErr: true,
@@ -102,26 +122,6 @@ func TestSend(t *testing.T) {
 			name:    "fails on bad --json",
 			args:    []string{"send", url, "--json", "{bad"},
 			wantErr: true,
-		},
-		{
-			name:     "positional text",
-			args:     []string{"send", url, "-o", "json", msgText},
-			wantText: msgText,
-		},
-		{
-			name:     "message json",
-			args:     []string{"send", url, "-o", "json", "--json", msgJSON},
-			wantText: msgText,
-		},
-		{
-			name:     "message from file",
-			args:     []string{"send", url, "-o", "json", "-f", path},
-			wantText: msgText,
-		},
-		{
-			name:     "message parts",
-			args:     []string{"send", url, "-o", "json", "--parts", `[{"text":"part one"},{"text":"part two"}]`},
-			wantText: "part one part two",
 		},
 	}
 	for _, tt := range sendTests {
@@ -150,17 +150,19 @@ func TestSendStreaming(t *testing.T) {
 	url := startTestServer(t)
 	out := mustRunCMD(t, "send", url, "-o", "json", "--stream", "stream me")
 	dec := json.NewDecoder(strings.NewReader(out))
-	var count int
+	var events []a2a.StreamResponse
 	for dec.More() {
-		var raw json.RawMessage
-		if err := dec.Decode(&raw); err != nil {
-			t.Fatalf("json.Decode(event %d) error = %v", count, err)
+		var sr a2a.StreamResponse
+		if err := dec.Decode(&sr); err != nil {
+			t.Fatalf("json.Decode(event %d) error = %v", len(events), err)
 		}
-		fmt.Println(string(raw))
-		count++
+		if sr.Event == nil {
+			t.Fatalf("json.Decode(event %d) produced nil Event", len(events))
+		}
+		events = append(events, sr)
 	}
-	if count <= 1 {
-		t.Fatalf("a2a send --stream produced %d events, want > 1", count)
+	if len(events) <= 1 {
+		t.Fatalf("a2a send --stream produced %d events, want > 1", len(events))
 	}
 }
 

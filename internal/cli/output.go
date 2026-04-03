@@ -59,7 +59,7 @@ func (g *globalConfig) printTask(task *a2a.Task) error {
 
 func (g *globalConfig) printEvent(event a2a.Event) error {
 	if g.output == "json" {
-		return printJSON(g.out, event)
+		return printJSON(g.out, a2a.StreamResponse{Event: event})
 	}
 	var s string
 	switch e := event.(type) {
@@ -113,11 +113,11 @@ func (g *globalConfig) printTaskList(resp *a2a.ListTasksResponse) error {
 
 func formatCard(card *a2a.AgentCard) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Name:         %s\n", card.Name))
+	fmt.Fprintf(&sb, "Name:         %s\n", card.Name)
 	if card.Description != "" {
-		sb.WriteString(fmt.Sprintf("Description:  %s\n", card.Description))
+		fmt.Fprintf(&sb, "Description:  %s\n", card.Description)
 	}
-	sb.WriteString(fmt.Sprintf("Version:      %s\n", card.Version))
+	fmt.Fprintf(&sb, "Version:      %s\n", card.Version)
 
 	if len(card.SupportedInterfaces) > 0 {
 		sb.WriteString("Interfaces:\n")
@@ -140,17 +140,17 @@ func formatCard(card *a2a.AgentCard) string {
 
 func formatTask(task *a2a.Task) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Task:     %s\n", task.ID))
+	fmt.Fprintf(&sb, "Task:     %s\n", task.ID)
 	if task.ContextID != "" {
-		sb.WriteString(fmt.Sprintf("Context:  %s\n", task.ContextID))
+		fmt.Fprintf(&sb, "Context:  %s\n", task.ContextID)
 	}
-	sb.WriteString(fmt.Sprintf("Status:   %s", shortState(task.Status.State)))
+	fmt.Fprintf(&sb, "Status:   %s", shortState(task.Status.State))
 	if task.Status.Timestamp != nil {
-		sb.WriteString(fmt.Sprintf(" (%s)", task.Status.Timestamp.Format("2006-01-02T15:04:05Z07:00")))
+		fmt.Fprintf(&sb, " (%s)", task.Status.Timestamp.Format("2006-01-02T15:04:05Z07:00"))
 	}
-	sb.WriteString("\n")
+	fmt.Fprintf(&sb, "\n")
 	if task.Status.Message != nil {
-		sb.WriteString(fmt.Sprintf("  %s\n", messageText(task.Status.Message)))
+		fmt.Fprintf(&sb, "  %s\n", messageText(task.Status.Message))
 	}
 
 	if len(task.Artifacts) > 0 {
@@ -160,7 +160,7 @@ func formatTask(task *a2a.Task) string {
 			if art.Name != "" {
 				label = art.Name
 			}
-			sb.WriteString(fmt.Sprintf("  [%s] %s\n", label, partsText(art.Parts)))
+			fmt.Fprintf(&sb, "  [%s] %s\n", label, partsText(art.Parts))
 		}
 	}
 
@@ -171,7 +171,7 @@ func formatTask(task *a2a.Task) string {
 			if msg.Role == a2a.MessageRoleAgent {
 				role = "agent"
 			}
-			sb.WriteString(fmt.Sprintf("  [%s] %s\n", role, messageText(msg)))
+			fmt.Fprintf(&sb, "  [%s] %s\n", role, messageText(msg))
 		}
 	}
 

@@ -33,7 +33,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// WithRESTTransport creates a factory option for the v0.3 HTTP+JSON transport.
+// WithJSONRPCTransport creates a factory option for the v0.3 HTTP+JSON transport.
 func WithJSONRPCTransport(cfg JSONRPCTransportConfig) a2aclient.FactoryOption {
 	return a2aclient.WithCompatTransport(
 		Version,

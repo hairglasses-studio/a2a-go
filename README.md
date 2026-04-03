@@ -119,10 +119,10 @@ The SDK ships with a command-line tool for working with A2A agents - send messag
 go install github.com/a2aproject/a2a-go/v2/cmd/a2a@latest
 
 # Discover an agent
-a2a resolve https://agent.example.com
+a2a discover https://agent.example.com
 
 # Send a message
-a2a send -a https://agent.example.com "Hello, what can you do?"
+a2a send https://agent.example.com "Hello, what can you do?"
 
 # Expose a local script as an A2A agent
 a2a serve --exec "./my-script.sh" --port 8080
