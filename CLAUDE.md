@@ -1,5 +1,7 @@
 # a2a-go
 
+This repo uses [AGENTS.md](AGENTS.md) as the canonical instruction file.
+
 Forked A2A (Agent-to-Agent) Go SDK for agent interoperability research.
 
 ## Build & Test

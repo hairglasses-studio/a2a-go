@@ -1,4 +1,6 @@
 ### General
+> Canonical instructions: AGENTS.md
+
 
 * Use @./docs/ai/OVERVIEW.md to understand the high-level project organization.
 * Use @./docs/ai/CONCURRENCY_MODEL.md if understanding concurrency model of request and execution handling is important for the task.
