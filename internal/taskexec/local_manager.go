@@ -171,7 +171,7 @@ func (m *localManager) Execute(ctx context.Context, req *a2a.SendMessageRequest)
 
 func (m *localManager) createExecution(ctx context.Context, tid a2a.TaskID, req *a2a.SendMessageRequest) (*localExecution, error) {
 	const maxRetries = 3
-	for range maxRetries {
+	for i := 0; ; i++ {
 		m.mu.Lock()
 
 		existing, ok := m.executions[tid]
@@ -193,17 +193,21 @@ func (m *localManager) createExecution(ctx context.Context, tid a2a.TaskID, req 
 			return execution, nil
 		}
 
+		if i >= maxRetries {
+			m.mu.Unlock()
+			return nil, fmt.Errorf("%w: execution still active after %d retries", ErrExecutionInProgress, maxRetries)
+		}
+
 		done := existing.result.done
 		m.mu.Unlock()
 
 		select {
 		case <-done:
 		case <-ctx.Done():
-			return nil, fmt.Errorf("%w: timed out waiting for previous execution: %w",
+			return nil, fmt.Errorf("%w: context error while waiting for previous execution: %w",
 				ErrExecutionInProgress, ctx.Err())
 		}
 	}
-	return nil, fmt.Errorf("%w: execution still active after %d retries", ErrExecutionInProgress, maxRetries)
 }
 
 // Cancel uses [Canceler] to signal task cancelation and waits for it to take effect.
