@@ -1,4 +1,3 @@
-Always check @./AGENTS.md for the full instruction list.
+# a2a-go
 
-This file exists for compatibility with tools that do not look for AGENTS.md.
-
+This repo uses [AGENTS.md](AGENTS.md) as the canonical instruction file.
