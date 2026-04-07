@@ -43,7 +43,8 @@ Desktop.ini
 # AI agent artifacts
 .claude/
 .codex/
-.gemini/
+.gemini/*
+!.gemini/config.yaml
 .agents/
 !.agents/skills/
 .ralph/
