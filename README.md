@@ -1,5 +1,7 @@
 # A2A Go SDK
 
+> **Fork** — Forked from [a2aproject/a2a-go](https://github.com/a2aproject/a2a-go) for agent interoperability research. Upstream Apache 2.0 license preserved.
+
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Nightly Check](https://github.com/a2aproject/a2a-go/actions/workflows/nightly.yaml/badge.svg)](https://github.com/a2aproject/a2a-go/actions/workflows/nightly.yaml)
 [![Go Doc](https://img.shields.io/badge/Go%20Package-Doc-blue.svg)](https://pkg.go.dev/github.com/a2aproject/a2a-go/v2)
