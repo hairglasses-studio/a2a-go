@@ -23,7 +23,7 @@ jobs:
         contains(github.event.comment.body, '@claude') &&
         contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
       )
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, archglasses]
     steps:
       - uses: actions/checkout@v6
         with:
