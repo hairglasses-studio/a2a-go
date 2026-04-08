@@ -10,14 +10,14 @@ permissions:
 
 jobs:
   label:
-    runs-on: [self-hosted, archglasses]
+    runs-on: [self-hosted, archglasses, optimized]
     steps:
       - uses: actions/labeler@v5
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
   size:
-    runs-on: [self-hosted, archglasses]
+    runs-on: [self-hosted, archglasses, optimized]
     steps:
       - uses: codelytv/pr-size-labeler@v1
         with:

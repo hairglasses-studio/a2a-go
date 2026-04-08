@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   stale:
-    runs-on: [self-hosted, archglasses]
+    runs-on: [self-hosted, archglasses, optimized]
     steps:
       - uses: actions/stale@v9
         with:
