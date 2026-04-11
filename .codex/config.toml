@@ -1,4 +1,4 @@
-approval_policy = "on-request"
+approval_policy = "never"
 sandbox_mode = "workspace-write"
 
 [agents]
@@ -11,12 +11,12 @@ sandbox_mode = "read-only"
 model_reasoning_effort = "medium"
 
 [profiles.review]
-approval_policy = "on-request"
+approval_policy = "never"
 sandbox_mode = "read-only"
 model_reasoning_effort = "high"
 
 [profiles.workspace_auto]
-approval_policy = "on-failure"
+approval_policy = "never"
 sandbox_mode = "workspace-write"
 model_reasoning_effort = "high"
 
