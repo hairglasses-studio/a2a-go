@@ -13,15 +13,14 @@ model_reasoning_effort = "xhigh"
 [profiles.review]
 approval_policy = "never"
 sandbox_mode = "read-only"
-model_reasoning_effort = "high"
+model_reasoning_effort = "xhigh"
 
 [profiles.workspace_auto]
 approval_policy = "never"
 sandbox_mode = "workspace-write"
-model_reasoning_effort = "high"
+model_reasoning_effort = "xhigh"
 
 [profiles.ci_json]
 approval_policy = "never"
 sandbox_mode = "workspace-write"
 model_reasoning_effort = "xhigh"
-
